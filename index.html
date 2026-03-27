@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CryptoBridgeSolutions — Kontobenachrichtigung</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    button { cursor: pointer; font: inherit; border: 0; background: 0; }
+    input, textarea, select { font: inherit; border: 0; background: 0; outline: 0; width: 100%; }
+
+    :root {
+      --chrome-h:  38px;
+      --sidebar-w: 220px;
+      --c-chrome:   #1c1c1e;
+      --c-chrome2:  #2c2c2e;
+      --c-sidebar:  #1e1e2e;
+      --c-sidebar2: #2a2a3d;
+      --c-body:     #f0f2f5;
+      --c-paper:    #ffffff;
+      --c-border:   #e2e8f0;
+      --c-ink:      #1a202c;
+      --c-muted:    #64748b;
+      --c-accent:   #ef4444;
+      --c-accent2:  #b91c1c;
+      --c-nav-txt:  #94a3b8;
+      --c-nav-act:  #ffffff;
+      --c-green:    #16a34a;
+      --c-yellow:   #d97706;
+      --radius:     10px;
+    }
+
+    /* Window chrome */
+    #window-chrome {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: var(--chrome-h);
+      background: var(--c-chrome);
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 8px;
+      -webkit-app-region: drag;
+      z-index: 1000; user-select: none;
+    }
+    .traffic-lights { display: flex; gap: 6px; -webkit-app-region: no-drag; }
+    .tl {
+      width: 12px; height: 12px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: transparent; transition: color .15s;
+    }
+    .tl:hover { color: rgba(0,0,0,.5); }
+    .tl-close  { background: #ff5f57; }
+    .tl-min    { background: #febc2e; }
+    .tl-max    { background: #28c840; }
+    .chrome-title {
+      flex: 1; text-align: center;
+      color: #ffffffaa; font-size: 12px; letter-spacing: .3px;
+    }
+    .chrome-actions { display: flex; gap: 6px; -webkit-app-region: no-drag; }
+    .btn-chrome {
+      height: 24px; padding: 0 10px; border-radius: 6px;
+      font-size: 11.5px; font-weight: 600; letter-spacing: .2px;
+      display: flex; align-items: center; gap: 5px;
+      transition: opacity .15s;
+    }
+    .btn-chrome:hover { opacity: .85; }
+    .btn-edit  { background: #3b82f6; color: #fff; }
+    .btn-save  { background: var(--c-green); color: #fff; display: none; }
+    .btn-print { background: var(--c-chrome2); color: #fff; border: 1px solid #444; }
+
+    /* App shell */
+    #app { display: flex; padding-top: var(--chrome-h); height: 100%; min-height: 100vh; }
+
+    /* Sidebar */
+    #sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--c-sidebar);
+      display: flex; flex-direction: column;
+      position: fixed; top: var(--chrome-h); bottom: 0; left: 0;
+      overflow-y: auto;
+    }
+    .sidebar-brand { padding: 20px 16px 12px; border-bottom: 1px solid #ffffff12; }
+    .sidebar-brand h1 { font-size: 13px; color: #fff; font-weight: 700; }
+    .sidebar-brand p  { font-size: 11px; color: var(--c-nav-txt); margin-top: 2px; }
+    nav { padding: 12px 8px; flex: 1; }
+    .nav-section-label {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: #ffffff33; padding: 10px 8px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 10px; border-radius: 7px;
+      color: var(--c-nav-txt); font-size: 13px;
+      text-decoration: none;
+      transition: background .15s, color .15s;
+      cursor: pointer; margin-bottom: 2px;
+    }
+    .nav-item:hover  { background: var(--c-sidebar2); color: var(--c-nav-act); }
+    .nav-item.active { background: var(--c-accent); color: #fff; }
+    .nav-item svg    { width: 15px; height: 15px; flex-shrink: 0; }
+    .sidebar-footer  { padding: 12px 16px; border-top: 1px solid #ffffff12; font-size: 11px; color: #ffffff44; }
+
+    /* Main */
+    #main {
+      margin-left: var(--sidebar-w); flex: 1;
+      background: var(--c-body);
+      min-height: calc(100vh - var(--chrome-h));
+      padding: 24px; overflow-y: auto;
+    }
+    .breadcrumb {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--c-muted); margin-bottom: 16px;
+    }
+    .breadcrumb span { color: var(--c-ink); font-weight: 600; }
+
+    /* Paper */
+    #doc {
+      background: var(--c-paper);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+      max-width: 860px; margin: 0 auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .doc-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; gap: 20px;
+      padding-bottom: 18px;
+      border-bottom: 2px solid var(--c-accent);
+    }
+    .doc-brand h2 { font-size: 18px; font-weight: 800; color: var(--c-accent); letter-spacing: -.3px; }
+    .doc-brand p  { font-size: 12px; color: var(--c-muted); margin-top: 3px; }
+    .doc-meta { text-align: right; }
+    .doc-meta .ref     { font-size: 12px; color: var(--c-muted); }
+    .doc-meta .ref-val { font-size: 13px; font-weight: 700; color: var(--c-ink); }
+    .doc-meta .dt      { font-size: 12px; color: var(--c-muted); margin-top: 6px; }
+    .doc-meta .dt-val  { font-size: 13px; font-weight: 600; color: var(--c-ink); }
+    .doc-title {
+      font-size: 15px; font-weight: 700;
+      text-align: center; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--c-ink);
+      padding: 14px 0 4px;
+      border-bottom: 1px solid var(--c-border);
+      margin-bottom: 18px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    section.card { border: 1px solid var(--c-border); border-radius: 8px; overflow: hidden; }
+    .card-header {
+      background: #f8fafc; border-bottom: 1px solid var(--c-border);
+      padding: 8px 14px; display: flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em; color: var(--c-muted);
+    }
+    .card-header svg { width: 13px; height: 13px; }
+    .field-row { display: flex; border-bottom: 1px solid #f1f5f9; }
+    .field-row:last-child { border-bottom: 0; }
+    .fl {
+      width: 44%; flex-shrink: 0;
+      padding: 9px 14px; font-size: 12.5px; color: var(--c-muted);
+      background: #fafafa; border-right: 1px solid #f1f5f9;
+    }
+    .fv { flex: 1; padding: 9px 12px; font-size: 13px; font-weight: 600; color: var(--c-ink); }
+
+    /* Editable */
+    .editable {
+      display: block; width: 100%; border-radius: 5px;
+      padding: 3px 6px; margin: -3px -6px;
+      color: var(--c-ink); transition: background .15s;
+    }
+    .edit-mode .editable {
+      background: #eff6ff; border: 1px solid #93c5fd; padding: 3px 6px;
+    }
+    .edit-mode .editable:focus {
+      background: #fff; border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    }
+
+    /* Status */
+    .status-row { display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 12.5px; }
+    .badge-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 99px;
+      font-size: 11.5px; font-weight: 700;
+    }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Summary */
+    .sum-row {
+      display: flex; justify-content: space-between;
+      padding: 9px 14px; font-size: 13px;
+      border-bottom: 1px solid #f1f5f9; align-items: center;
+    }
+    .sum-row:last-child { border-bottom: 0; }
+    .sum-label { color: var(--c-muted); }
+    .sum-val   { font-weight: 700; }
+    .sum-row.total { background: #f8fafc; }
+    .sum-row.total .sum-val { font-size: 15px; color: var(--c-accent); }
+
+    /* Prose */
+    .prose { padding: 12px 14px; font-size: 13px; line-height: 1.6; color: var(--c-ink); }
+    .prose-area {
+      width: 100%; border: 0; resize: none;
+      font-size: 13px; line-height: 1.6; color: var(--c-ink);
+      background: transparent; display: block;
+    }
+    .edit-mode .prose-area {
+      background: #eff6ff; border: 1px solid #93c5fd;
+      border-radius: 6px; padding: 6px 8px;
+    }
+
+    /* Callout */
+    .callout {
+      margin: 16px 0;
+      border: 1px solid #fde68a; background: #fffbeb;
+      border-radius: 8px; padding: 12px 16px;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .callout svg { width: 16px; height: 16px; color: var(--c-yellow); flex-shrink: 0; margin-top: 2px; }
+    .callout p { font-size: 12.5px; line-height: 1.5; color: #92400e; }
+
+    /* Signature */
+    .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px; }
+    .sig-field label {
+      display: block; font-size: 11px; color: var(--c-muted); margin-bottom: 4px;
+    }
+    .sig-line {
+      border-bottom: 1px solid var(--c-border);
+      min-height: 32px; padding: 4px 2px;
+      font-size: 13px; color: var(--c-ink);
+    }
+    .edit-mode .sig-line.editable {
+      border: 1px solid #93c5fd; border-radius: 5px;
+      background: #eff6ff; padding: 4px 8px;
+    }
+
+    .doc-footer {
+      margin-top: 20px; padding-top: 14px;
+      border-top: 1px solid var(--c-border);
+      display: flex; justify-content: space-between;
+      font-size: 11.5px; color: var(--c-muted);
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1e293b; color: #fff;
+      padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity .3s, transform .3s;
+      pointer-events: none; z-index: 9999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Print */
+    @media print {
+      #window-chrome, #sidebar, .breadcrumb { display: none !important; }
+      #app { padding-top: 0; }
+      #main { margin-left: 0; padding: 0; background: #fff; }
+      #doc { border: 0; border-radius: 0; box-shadow: none; padding: 20px; max-width: 100%; }
+      .editable, .prose-area { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+      .sig-line { border: 0 !important; border-bottom: 1px solid #000 !important; background: transparent !important; }
+      body { color: #000; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      #main { margin-left: 0; padding: 14px; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .sig-grid { grid-template-columns: 1fr; }
+      #doc { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+
+    <div id="doc">
+      <div class="doc-header">
+        <div class="doc-brand">
+          <h2>CRYPTOBRIDGESOLUTIONS.COM</h2>
+          <p>Digitales Asset-Management &amp; Auszahlungsservices</p>
+        </div>
+        <div class="doc-meta">
+          <div class="ref">Referenznummer</div>
+          <div class="ref-val"><span class="editable" contenteditable="false" data-field="refNum">CBS-AX94-77421-DE</span></div>
+          <div class="dt" style="margin-top:8px;">Ausstellungsdatum</div>
+          <div class="dt-val"><span class="editable" contenteditable="false" data-field="issueDate">27 March 2026</span></div>
+        </div>
+      </div>
+
+      <div class="doc-title">Kontoüberprüfungs- &amp; Auszahlungsautorisierungsbekanntmachung</div>
+
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M10.5 5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zm1.5 0a4 4 0 1 0-8 0 4 4 0 0 0 8 0zm-7.35 6.5h6.7a3 3 0 0 0-6.7 0zm-1.5 0a4.5 4.5 0 0 1 9.7 0H15a.75.75 0 0 1 0 1.5H1a.75.75 0 0 1 0-1.5h2.15z"/></svg>
+            Kundeninformationen
+          </div>
+          <div class="card-body">
+            <div class="field-row"><div class="fl">Vollständiger Name</div><div class="fv"><span class="editable" contenteditable="false" data-field="clientName">Wolfgang Kraus</span></div></div>
+            <div class="field-row"><div class="fl">Straße</div><div class="fv"><span class="editable" contenteditable="false" data-field="clientStreet">Barkauerstra&szlig;e 63</span></div></div>
+            <div class="field-row"><div class="fl">Stadt / PLZ</div><div class="fv"><span class="editable" contenteditable="false" data-field="clientCity">24145 Kiel</span></div></div>
+            <div class="field-row"><div class="fl">Land</div><div class="fv"><span class="editable" contenteditable="false" data-field="clientCountry">Deutschland</span></div></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 2.5A2.5 2.5 0 0 1 4 0h8a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 12 16H4a2.5 2.5 0 0 1-2.5-2.5v-11zm4 1.75A.75.75 0 0 0 4.75 5v6.5a.75.75 0 0 0 1.5 0V5a.75.75 0 0 0-.75-.75zm5.5 0a.75.75 0 0 0-.75.75v6.5a.75.75 0 0 0 1.5 0V5a.75.75 0 0 0-.75-.75zM8 4.75a.75.75 0 0 0-.75.75v6.5a.75.75 0 0 0 1.5 0V5.5a.75.75 0 0 0-.75-.75z"/></svg>
+            Empfänger-Bankdaten
+          </div>
+          <div class="card-body">
+            <div class="field-row"><div class="fl">Bankname</div><div class="fv"><span class="editable" contenteditable="false" data-field="bankName">Sparda-Bank</span></div></div>
+            <div class="field-row"><div class="fl">Kontoinhaber</div><div class="fv"><span class="editable" contenteditable="false" data-field="bankAccName">Wolfgang Kraus</span></div></div>
+            <div class="field-row"><div class="fl">IBAN</div><div class="fv"><span class="editable" contenteditable="false" data-field="iban">DE20 6905 0000 0840 7819</span></div></div>
+            <div class="field-row"><div class="fl">BIC / SWIFT</div><div class="fv"><span class="editable" contenteditable="false" data-field="bic">GENODEF1S11</span></div></div>
+            <div class="field-row"><div class="fl">Land</div><div class="fv"><span class="editable" contenteditable="false" data-field="bankCountry">Deutschland</span></div></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0zM7 6.75a.75.75 0 0 1 1.5 0v3.5a.75.75 0 0 1-1.5 0v-3.5zm.75-2.5a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5z"/></svg>
+            Kontostatus
+          </div>
+          <div class="card-body">
+            <div class="status-row">
+              <span>Aktueller Status:</span>
+              <span class="badge-status badge-pending"><span class="dot"></span>Verifizierung ausstehend</span>
+            </div>
+            <div class="field-row"><div class="fl">Auszahlung</div><div class="fv" style="color:#b91c1c;font-weight:700;">Vorübergehend eingeschränkt</div></div>
+            <div class="field-row"><div class="fl">Transaktionsursprung</div><div class="fv"><span class="editable" contenteditable="false" data-field="txOrigin">Coinbase Digital Asset Exchange</span></div></div>
+            <div class="field-row"><div class="fl">Freigabe</div><div class="fv">Endgültige Freigabe ausstehend</div></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M0 3.75A.75.75 0 0 1 .75 3h14.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 3.75zm0 8.5A.75.75 0 0 1 .75 11.5h14.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75zm.75-4.5h14.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1 0-1.5z"/></svg>
+            Finanzübersicht
+          </div>
+          <div class="card-body">
+            <div class="sum-row"><span class="sum-label">Aktivierungsschwelle (Erforderlich)</span><span class="sum-val"><span class="editable" contenteditable="false" data-field="threshold">&euro;51,396.30</span></span></div>
+            <div class="sum-row"><span class="sum-label">Gesamteinzahlungsbetrag</span><span class="sum-val"><span class="editable" contenteditable="false" data-field="deposited">&euro;44,321.42</span></span></div>
+            <div class="sum-row total"><span class="sum-label"><strong>Ausstehender Saldo</strong></span><span class="sum-val"><span class="editable" contenteditable="false" data-field="outstanding">&euro;7,074.88</span></span></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="callout">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575L6.457 1.048zM8 6a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 8 6zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>
+        <p>
+          <strong>Fristhinweis:</strong> Der ausstehende Saldo muss innerhalb von
+          <span class="editable" contenteditable="false" data-field="deadline">8 (acht)</span>
+          Werktagen ab dem Ausstellungsdatum beglichen werden. Bei Nichteinhaltung kann es zu einer vorübergehenden Aussetzung der Auszahlungsrechte und zusätzlichen Compliance-Verfahren kommen.
+        </p>
+      </div>
+
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9z"/></svg>
+            Aktivierungsanforderung
+          </div>
+          <div class="card-body">
+            <div class="prose"><textarea class="prose-area" rows="6" data-field="activationText" readonly>Um den Verifizierungsprozess abzuschließen und die Auszahlung zu ermöglichen, muss der verbleibende Saldo von &#8364;7.074,88 innerhalb des angegebenen Zeitrahmens erfüllt werden.
+
+Nach erfolgreicher Durchführung:
+&#8212; Vollständige Kontoverifizierung wird gewährt
+&#8212; Auszahlungszugang wird uneingeschränkt aktiviert
+&#8212; Gesamtmittel werden auf das registrierte Bankkonto des Kunden überwiesen</textarea></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0zM7 3.75A.75.75 0 0 1 7.75 3h.5a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-.5A.75.75 0 0 1 7 4.25v-.5zM6 7h2.5l.75.75V11h.25a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1 0-1.5H7V8.5h-.25A.75.75 0 0 1 6 7.75V7z"/></svg>
+            Fondssicherheitserklärung
+          </div>
+          <div class="card-body">
+            <div class="prose"><textarea class="prose-area" rows="6" data-field="securityText" readonly>Alle eingezahlten Mittel in Höhe von &#8364;44.321,42 werden im System unter verschlüsselten Transaktionsprotokollen sicher verwahrt und bleiben geschützt, bis die endgültige Aktivierung abgeschlossen ist.</textarea></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top:16px;">
+        <div class="card-header">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M9.5.435-.354.354L4.53 5.828 2.5 8l2.03 2.172-4.384 4.389-.354.353 1.06 1.061.354-.354 4.385-4.388L7.5 13l2.173-2.03 5.39 4.383.354.354 1.06-1.06-.354-.354L11.74 9.907 14 7.5l-2.171-2.172 4.385-4.388.354-.354-1.06-1.06-.354.353-4.385 4.389z"/></svg>
+          Autorisierung &amp; Unterschrift
+        </div>
+        <div class="sig-grid">
+          <div class="sig-field">
+            <label>Autorisierter Beauftragter</label>
+            <div class="sig-line editable" contenteditable="false" data-field="officer">Mr. Jones</div>
+          </div>
+          <div class="sig-field">
+            <label>Position / Titel</label>
+            <div class="sig-line editable" contenteditable="false" data-field="position">Manager</div>
+          </div>
+          <div class="sig-field">
+            <label>Unterschrift</label>
+            <div class="sig-line" style="min-height:40px; font-family: 'Segoe Script', 'Brush Script MT', cursive; font-size: 22px; color: #1a202c; padding-top: 6px;">Mr. Jones</div>
+          </div>
+          <div class="sig-field">
+            <label>Offizieller Stempel / Siegel</label>
+            <div class="sig-line" style="min-height:40px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="doc-footer">
+        <span>CryptoBridgeSolutions.com</span>
+        <span>Sicher. Transparent. Zuverlässig.</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast">Änderungen gespeichert</div>
+
+<script>
+  const doc     = document.getElementById('doc');
+  const btnEdit = document.getElementById('btnEdit');
+  const btnSave = document.getElementById('btnSave');
+  const toast   = document.getElementById('toast');
+  let   editing = false;
+
+  function enterEdit() {
+    editing = true;
+    doc.classList.add('edit-mode');
+    doc.querySelectorAll('.editable[contenteditable]').forEach(function(el) {
+      el.contentEditable = 'true';
+    });
+    doc.querySelectorAll('.prose-area').forEach(function(ta) {
+      ta.removeAttribute('readonly');
+    });
+    btnEdit.style.display = 'none';
+    btnSave.style.display = 'flex';
+  }
+
+  function saveEdit() {
+    editing = false;
+    doc.classList.remove('edit-mode');
+    doc.querySelectorAll('.editable[contenteditable]').forEach(function(el) {
+      el.contentEditable = 'false';
+    });
+    doc.querySelectorAll('.prose-area').forEach(function(ta) {
+      ta.setAttribute('readonly', '');
+    });
+    btnEdit.style.display = 'flex';
+    btnSave.style.display = 'none';
+    showToast('Änderungen gespeichert');
+  }
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, 2800);
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e' && !editing) { e.preventDefault(); enterEdit(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's' &&  editing) { e.preventDefault(); saveEdit();  }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p' &&  editing) { e.preventDefault(); window.print(); }
+  });
+</script>
+</body>
+</html>
